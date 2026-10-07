@@ -32,7 +32,7 @@ agents:
     bedrock_agentcore:
       agent_id: deneme-2PpIu2Fc8q
       agent_arn: arn:aws:bedrock-agentcore:us-east-1:116194207589:runtime/deneme-2PpIu2Fc8q
-      agent_session_id: '22'
+      agent_session_id: 90675e23-fa83-4023-a342-75d017434a6a
     codebuild:
       project_name: null
       execution_role: null

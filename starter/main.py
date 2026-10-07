@@ -68,7 +68,7 @@ os.environ["BYPASS_TOOL_CONSENT"] = "true"
 # MEMORY_ID   format: shown in the AgentCore Memory console
 
 GATEWAY_URL = "https://customersupportgateway-h1h9omcc6y.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp"   
-KB_ID       = "DME99TB15V"          
+KB_ID       = "DOQYK4Z6BL"          
 REGION      = "us-east-1"    
 MEMORY_ID   = "CustomerSupportMemory2-Pnx3NhB6gE"        
 
@@ -107,11 +107,19 @@ _bedrock_runtime = boto3.client("bedrock-agent-runtime", region_name=REGION)
 #   { "SEMANTIC": "cs_agent/{actorId}/facts",
 #     "USER_PREFERENCE": "cs_agent/{actorId}/preferences" }
 
+
 def get_namespaces(mem_client: MemoryClient, memory_id: str) -> Dict:
     """Return a dict mapping strategy type → namespace template string."""
     # Implement this function
     strategies = mem_client.get_memory_strategies(memory_id)
-    return {s["type"]: s["namespaces"][0] for s in strategies}
+
+    result = {}
+
+    for s in strategies:
+        namespace = s.get("namespaceTemplates", [None])[0] or s.get("namespaces", [None])[0]
+        if namespace:
+            result[s["type"]] = namespace
+    return result
 
 
 # ──  5 — Memory Hook ──────────────────────────────────────────────────────
@@ -141,7 +149,7 @@ def get_namespaces(mem_client: MemoryClient, memory_id: str) -> Dict:
 #     — register save_support_interaction on AfterInvocationEvent
 
 class MemoryHook(HookProvider):
-    """Long-term memory hook for the customer support agent."""
+    """Long-term memory hook for the customer support agent. """
 
     def __init__(
         self,
@@ -199,7 +207,7 @@ class MemoryHook(HookProvider):
                             all_context.append(f"[{strategy_type}] {text}")
                         
                         if memory.get("text", ""):
-                            all_context.append(f"[{strategy_type}] {memory['text']}.strip()")
+                            all_context.append(f"[{strategy_type}] {memory['text'].strip()}")
 
             #   6. If any found, prepend them to the user message
             if all_context:
@@ -248,7 +256,7 @@ class MemoryHook(HookProvider):
                         (agent_text, "ASSISTANT")
                     ],
                 )
-                logger.info("Saved interaction to memory for actor %s, session %s", actor_id, session_id)
+                logger.info("Saved interaction to memory for actor %s, session id %s", actor_id, session_id)
 
         except Exception as e:
             logger.error("Error saving interaction to memory for actor %s, session %s: %s", actor_id, session_id, e)
@@ -387,6 +395,8 @@ tier_discount = (
     * tier_rates.get(tier, 0.0)
 )
 
+tier_discount_percentage = tier_rates.get(tier, 0.0) * 100
+
 final_total = subtotal_after_points - tier_discount
 
 total_savings = points_discount + tier_discount
@@ -395,11 +405,12 @@ points_earned = math.floor(
     final_total * earn_rates.get(product_category, 1)
 )
 
-remaining_points = loyalty_points - points_redeemed
+remaining_points = loyalty_points - points_redeemed + points_earned
 
 result = {{
     "points_redeemed": points_redeemed,
     "tier_discount": round(tier_discount, 2),
+    "tier_discount_percentage": round(tier_discount_percentage, 2),
     "final_total": round(final_total, 2),
     "total_savings": round(total_savings, 2),
     "points_earned": points_earned,
@@ -421,10 +432,42 @@ print(json.dumps(result))
             )
 
         for event in response["stream"]:
-            return json.dumps(event["result"])
+            if event.get("isError"):
+                raise RuntimeError("Code Interpreter error" )
+
+            result = event.get("result",{})
+
+            stdout = result.get("structuredContent", {}).get("stdout", "")
+
+            if stdout is None:
+                for block in result.get("content", []):
+                    if block.get("type") == "text" :
+                        stdout = block.get("text", "")
+                        break
+            if not stdout:
+                continue
+
+            parsed = json.loads(stdout)
+
+            required_fields = [
+                "points_redeemed",
+                "tier_discount_percentage",
+                "final_total",
+                "remaining_points"
+            ]
+            for field in required_fields:
+                if field not in parsed:
+                    raise ValueError(f"Missing required field: {field}")
+
+                if not isinstance(parsed[field], (int, float)):
+                    raise ValueError(f"Field {field} is not numeric")
+
+            return json.dumps(parsed)
+
+        raise ValueError("No valid result returned by Code Interpreter")
 
     except Exception as e:
-        # TODO: Implement fallback calculation using tier discount only
+        # : Implement fallback calculation using tier discount only
         logger.warning(
             "Code Interpreter unavailable, using fallback: %s",
             e
@@ -444,6 +487,7 @@ print(json.dumps(result))
 
         return json.dumps({
             "tier_discount": round(tier_discount, 2),
+            "tier_discount_percentage": round(rate * 100, 2),
             "final_total": round(final_total, 2),
             "total_savings": round(tier_discount, 2),
             "points_redeemed": 0,
@@ -453,7 +497,7 @@ print(json.dumps(result))
         })
 
 
-# ── TODO 8 — Agent Entrypoint ─────────────────────────────────────────────────
+# ──  8 — Agent Entrypoint ─────────────────────────────────────────────────
 # Implement the invoke() function decorated with @app.entrypoint.
 #
 # Steps:
@@ -583,6 +627,7 @@ Use `calculate_loyalty_discount` whenever the customer asks for a loyalty discou
 - Point redemption
 - Final price
 - Tier discounts
+- Tier discount percentage
 
 Do not perform complex loyalty calculations manually when the calculator tool is available.
 
@@ -590,6 +635,7 @@ Provide the result clearly, including relevant values such as:
 
 - Points redeemed
 - Tier discount
+- Tier discount percentage
 - Total savings
 - Final order total
 - Remaining points
@@ -604,24 +650,6 @@ If the calculator reports that it is using a fallback calculation, communicate t
 You have access to a live web browser.
 
 Use the browser when the customer explicitly requests live web information that cannot be reliably answered from the knowledge base or Gateway tools.
-
-For destination and travel questions, use Wikivoyage:
-
-https://en.wikivoyage.org/
-
-When a customer asks about a destination:
-
-1. Navigate to the relevant Wikivoyage page.
-2. Read the available information.
-3. Focus on useful information such as:
-   - Highlights
-   - Neighborhoods
-   - Attractions
-   - Practical travel tips
-4. Summarize the information concisely.
-5. Clearly tell the customer that the destination information came from Wikivoyage.
-
-Do not imply that browser information is store policy or official Amazon information.
 
 For requests involving live websites, use the browser rather than relying on potentially outdated model knowledge.
 
@@ -756,36 +784,7 @@ Before responding, verify:
 
 Your objective is to make every interaction accurate, efficient, transparent, and genuinely useful to the customer.
 """
-# You have access to tools via the AgentCore Gateway:
-# - get_order(order id)          : Retrieve an order by reference (e.g. BK-1001)
-# - get_customer_orders(customer id)     : List all orders for a customer
-# - get_customer(customer id)     : Retrieve a specific customer's information (e.g. CUST-1001)
-# - initiate_refund(order id)          : Initiate a refund for a customer order.
-# - check_refund_status(refund id)          : Check the status of a refund 
-# - get_return_label(order id)          : Generate a prepaid return shipping label for an order.
-
-# You have access to a live web browser. Use it to look up destination information
-# on Wikivoyage (en.wikivoyage.org) — a free, open travel guide.
-
-# When a customer asks about a destination:
-# 1. Navigate to en.wikivoyage.org/wiki/<DestinationName>
-# 2. Read the page — focus on highlights, neighbourhoods, and practical tips
-# 3. Summarise what you find clearly and concisely
-
-# Always tell the customer that the information came from Wikivoyage.
-
-# you have tool of the Amazon product catalog and support knowledge base.
-# - search_knowledge_base : by giving a topic or question about poducts and policies you can check actual answers
-# Use this to answer questions about product specifications, return policies, warranty information, 
-# loyalty program details, and order status definitions.
-
-# Use these tools to help customers with their requests regarding their orders, refunds, and returns.
-# Present results clearly and ask clarifying questions when needed
-# """
-        
-#SYSTEM_PROMPT = """You are a customer support AI agent. Use the available tools to assist customers with their inquiries, including searching the knowledge base, calculating loyalty discounts, and browsing relevant information. Present results clearly and ask clarifying questions when needed."""
-# SYSTEM_PROMPT = """You are a customer support AI agent. Use the available tools to assist customers with their inquiries, including searching the knowledge base, calculating loyalty discounts, and browsing relevant information. Present results clearly and ask clarifying questions when needed."""
-    
+            
 @app.entrypoint
 async def invoke(payload, context=None):
     """
@@ -812,7 +811,7 @@ async def invoke(payload, context=None):
     #   2. Instantiate MemoryHook for this actor/session
     memory_hook = MemoryHook(actor_id, session_id, memory_client, MEMORY_ID)
     #   3. Instantiate AgentCoreBrowser(region=REGION)
-    agent_core_browser = AgentCoreBrowser(session_timeout=600)
+    agent_core_browser = AgentCoreBrowser(session_timeout=600,region=REGION)
     #   4. Build the tools list: [search_knowledge_base, calculate_loyalty_discount,
     #                              agent_core_browser.browser]
     tools = [
