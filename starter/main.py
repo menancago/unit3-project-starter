@@ -511,8 +511,20 @@ async def invoke(payload, context=None):
     # : Implement the agent invocation
     #   1. Extract user_input, actor_id, and session_id from the payload
     #      (generate a UUID if session_id is missing)
-    
     print("Received payload:", payload)
+
+    user_message = payload.get("prompt", "Hello")
+    session_id = payload.get("session_id") or  str(uuid.uuid4())
+    actor_id = payload.get("customer_id","ANONYMUS")
+    # print("Prompt STRING:",prompt_str)
+    # prompt_data = json.loads(prompt_str)
+    # user_message = prompt_data.get("prompt")
+    # actor_id = prompt_data.get("customer_id")
+    # session_id = prompt_data("sesion_id")
+    print("Message:",user_message)
+    print("Customer ID:",actor_id)
+    print("Session ID:",session_id)
+    return user_message
     
     # logger.info("Received payload: %s", payload)
     # user_message = payload.get("prompt", "Hello!")
@@ -533,7 +545,7 @@ async def invoke(payload, context=None):
     # session_id = payload.get("session_id") or str(uuid.uuid4())
     # logger.info("Session ID: %s", session_id)
     actor_id = "CUST-456" 
-    session_id = "test1"
+    session_id = "test2"
     user_message = payload.get("prompt", "Hello!")
     print("User message:", user_message)
     print("Initializing Agent for actor_id=%s, session_id=%s", actor_id, session_id)
