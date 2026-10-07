@@ -39,8 +39,8 @@ agents:
       source_bucket: null
     memory:
       mode: STM_AND_LTM
-      memory_id: CustomerSupportMemory-i5cSdCHxIN
-      memory_arn: arn:aws:bedrock-agentcore:us-east-1:116194207589:memory/CustomerSupportMemory-i5cSdCHxIN
+      memory_id: CustomerSupportMemory2-Pnx3NhB6gE
+      memory_arn: arn:aws:bedrock-agentcore:us-east-1:116194207589:memory/CustomerSupportMemory2-Pnx3NhB6gE
       memory_name: CustomerSupportMemory
       event_expiry_days: 90
       first_invoke_memory_check_done: true

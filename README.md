@@ -283,6 +283,7 @@ Run the following test scenarios and verify the expected behaviour. Include scre
 
 ```bash
 agentcore invoke '{"prompt": "Can you track order ORD-001?", "customer_id": "CUST-123", "session_id": "t1"}'
+agentcore invoke --dev --% "{""prompt"":""Can you track order ORD-001?"",""customer_id"":""CUST-123"",""session_id"":""t1""}"
 # Expected: shipping status, tracking number TRK987654321, carrier UPS, estimated delivery
 ```
 
@@ -290,6 +291,7 @@ agentcore invoke '{"prompt": "Can you track order ORD-001?", "customer_id": "CUS
 
 ```bash
 agentcore invoke '{"prompt": "I want to return my Kindle Paperwhite (ORD-002). Please initiate a refund.", "customer_id": "CUST-123", "session_id": "t2"}'
+agentcore invoke --dev --% "{""prompt"":""I want to return my Kindle Paperwhite (ORD-002). Please initiate a refund."",""customer_id"":""CUST-123"",""session_id"":""t2""}"
 # Expected: refund ID, APPROVED status, 3-5 business days message
 ```
 
@@ -297,6 +299,7 @@ agentcore invoke '{"prompt": "I want to return my Kindle Paperwhite (ORD-002). P
 
 ```bash
 agentcore invoke '{"prompt": "What are the benefits of the Platinum loyalty tier?", "customer_id": "CUST-123", "session_id": "t3"}'
+agentcore invoke --dev --% "{""prompt"":""What are the benefits of the Platinum loyalty tier?"",""customer_id"":""CUST-123"",""session_id"":""t3""}"
 # Expected: free same-day shipping, 15% discount, priority support
 ```
 
@@ -305,11 +308,13 @@ agentcore invoke '{"prompt": "What are the benefits of the Platinum loyalty tier
 ```bash
 # Session A — introduce yourself
 agentcore invoke '{"prompt": "Hi, I am Jane. I prefer concise responses.", "customer_id": "CUST-123", "session_id": "s-A"}'
+agentcore invoke --dev --% "{""prompt"":""Hi, I am Jane. I prefer concise responses."",""customer_id"":""CUST-123"",""session_id"":""s-A""}"
 
 # Wait at least 30 seconds for memory extraction.
 
 # Session B (new session) — verify recall
 agentcore invoke '{"prompt": "Do you remember my name and communication preference?", "customer_id": "CUST-123", "session_id": "s-B"}'
+agentcore invoke --dev --% "{""prompt"":""Do you remember my name and communication preference?"",""customer_id"":""CUST-123"",""session_id"":""s-B""}"
 # Expected: agent recalls "Jane" and "concise responses"
 ```
 
@@ -317,6 +322,7 @@ agentcore invoke '{"prompt": "Do you remember my name and communication preferen
 
 ```bash
 agentcore invoke '{"prompt": "I am a Gold member with 4250 points. Calculate my discount on a $150 standard order.", "customer_id": "CUST-123", "session_id": "t5"}'
+agentcore invoke --dev --% "{""prompt"":""I am a Gold member with 4250 points. Calculate my discount on a $150 standard order."",""customer_id"":""CUST-123"",""session_id"":""t5""}"
 # Expected: points redeemed, tier discount 10%, final total, remaining points
 ```
 
@@ -324,6 +330,7 @@ agentcore invoke '{"prompt": "I am a Gold member with 4250 points. Calculate my 
 
 ```bash
 agentcore invoke '{"prompt": "Go to https://www.udacity.com and tell me the page title.", "customer_id": "CUST-123", "session_id": "t6"}'
+agentcore invoke --dev --% "{""prompt"":""Go to https://www.udacity.com and tell me the page title."",""customer_id"":""CUST-123"",""session_id"":""t6""}"
 # Expected: page title retrieved from live Udacity.com
 ```
 
